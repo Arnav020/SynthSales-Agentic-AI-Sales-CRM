@@ -1247,4 +1247,8 @@ Added `RESEND_API_KEY` as a second HTTPS transactional email provider. Resend ta
 Brevo when both keys are present, uses the existing `SMTP_FROM` sender string, and is counted as real
 delivery for OTP responses. This keeps Render deploys on HTTPS email delivery instead of SMTP ports.
 
+For deployments that should send from a personal Gmail account without owning a domain, the email
+provider also accepts `GMAIL_SEND_REFRESH_TOKEN` plus a Gmail OAuth client id/secret. That sends through
+the Gmail API over HTTPS with the `gmail.send` scope and takes priority over Resend/Brevo when configured.
+
 Verified with backend `py_compile` for config, email provider, and auth router.

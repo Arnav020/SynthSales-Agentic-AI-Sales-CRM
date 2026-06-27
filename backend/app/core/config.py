@@ -86,6 +86,13 @@ class Settings(BaseSettings):
     # `smtp_from` and must be verified with the active provider.
     resend_api_key: str = ""
     brevo_api_key: str = ""
+    # Gmail API send over HTTPS from one operator-owned Gmail account. Use this
+    # when you want the app's transactional/outbound mail to come from Gmail on a
+    # cloud host where SMTP is unreliable. If send-specific client id/secret are
+    # blank, the Google OAuth client settings below are reused.
+    gmail_send_client_id: str = ""
+    gmail_send_client_secret: str = ""
+    gmail_send_refresh_token: str = ""
 
     # Google OAuth (sign-in / sign-up). Optional: leave the id/secret blank to
     # disable — the "Continue with Google" button hides and the OAuth routes

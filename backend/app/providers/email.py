@@ -29,10 +29,17 @@ def _mime(subject: str, body: str, html: str | None) -> MIMEText | MIMEMultipart
 
 
 class EmailProvider:
+    def _gmail_env_configured(self) -> bool:
+        client_id = settings.gmail_send_client_id or settings.google_client_id
+        client_secret = settings.gmail_send_client_secret or settings.google_client_secret
+        return bool(client_id and client_secret and settings.gmail_send_refresh_token)
+
     @property
     def mode(self) -> str:
         # HTTPS APIs take precedence: cloud hosts like Render's free tier block
         # outbound SMTP ports, so deploys should send over 443 instead.
+        if self._gmail_env_configured():
+            return "gmail"
         if settings.resend_api_key:
             return "resend"
         if settings.brevo_api_key:
@@ -172,9 +179,22 @@ class EmailProvider:
             from google.oauth2.credentials import Credentials
             from googleapiclient.discovery import build
 
-            creds = Credentials.from_authorized_user_file(settings.gmail_token_file)
+            client_id = settings.gmail_send_client_id or settings.google_client_id
+            client_secret = settings.gmail_send_client_secret or settings.google_client_secret
+            if settings.gmail_send_refresh_token and client_id and client_secret:
+                creds = Credentials(
+                    token=None,
+                    refresh_token=settings.gmail_send_refresh_token,
+                    token_uri="https://oauth2.googleapis.com/token",
+                    client_id=client_id,
+                    client_secret=client_secret,
+                    scopes=["https://www.googleapis.com/auth/gmail.send"],
+                )
+            else:
+                creds = Credentials.from_authorized_user_file(settings.gmail_token_file)
             service = build("gmail", "v1", credentials=creds)
             msg = _mime(subject, body, html)
+            msg["From"] = settings.smtp_from or settings.smtp_username
             msg["To"] = to
             raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
             service.users().messages().send(userId="me", body={"raw": raw}).execute()
