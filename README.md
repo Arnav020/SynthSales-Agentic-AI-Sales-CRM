@@ -1282,7 +1282,12 @@ browser ordering, token printed before the optional test send, BOM-tolerant `.en
 exception-safe callback signaling, loopback-only redirect guard. All fixes verified by a live
 socket/parse harness (port guard refuses with WinError 10048; parse finds `GOOGLE_CLIENT_ID`).
 
-**Remaining (user, one-time):** consent screen → "In production" publish status (Testing expires
-refresh tokens in 7 days), run the script, paste `GMAIL_SEND_REFRESH_TOKEN` + `SMTP_FROM` into the
-Render `synthsales-api` env, confirm `/health` flips to `email_mode: "gmail"`, then a real signup.
-Cleanup: delete probe user `synthsales.deploy.probe@example.com` (id 5) created during diagnosis.
+**Resolved same day:** user published the consent screen to "In production" + enabled the Gmail
+API, the mint script ran clean (consent → token → `--send-test` delivered a real email), and the
+minted `GMAIL_SEND_REFRESH_TOKEN` + `SMTP_FROM` went into the Render `synthsales-api` env. Verified
+live: `/health` now reports `email_mode: "gmail"`, and a production `POST /api/auth/register`
+returned `"email_sent": true` with the OTP delivered to a real inbox. **Production signup works.**
+Cleanup: delete probe users `synthsales.deploy.probe@example.com` (id 5) and
+`pulkitg3110+synthsales@gmail.com` (id 7) created during diagnosis/verification. Still open:
+Render free-Postgres expiry (check dashboard; Oracle VM runbook is the durable fix) and deleting
+the stale `synthsales` Render web service (frontend lives on Vercel).
