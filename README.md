@@ -1252,3 +1252,37 @@ provider also accepts `GMAIL_SEND_REFRESH_TOKEN` plus a Gmail OAuth client id/se
 the Gmail API over HTTPS with the `gmail.send` scope and takes priority over Resend/Brevo when configured.
 
 Verified with backend `py_compile` for config, email provider, and auth router.
+
+### 2026-07-25 (deployment state audit + Gmail send-token mint script)
+
+Resumed after a month away; live-probed the whole deployment to find where it stalled.
+
+**Live topology (verified):** frontend on **Vercel** (`https://synthsales.vercel.app`, correct
+`NEXT_PUBLIC_API_URL` baked into the served JS) + API on **Render** (`https://synthsales-api.onrender.com`,
+`/health` all-green: serper ×2, verifalia, hunter, google_oauth, `email_mode: resend`). The live
+`CORS_ORIGINS` allows **only** the Vercel origin — the old Render web service at
+`synthsales.onrender.com` still runs but is a stale leftover whose browser calls are CORS-blocked;
+it should be deleted (render.yaml still shows it, so don't trust the repo file for live values).
+DB is alive (real 401 on a credential probe), but it's Render free Postgres → subject to the
+~30-day expiry policy; check the dashboard.
+
+**The blocker (confirmed live):** production signup is dead — `POST /api/auth/register` returns
+`"email_sent": false` and prod hides `dev_otp`, so no OTP ever reaches a new user. Resend can't
+deliver to arbitrary recipients without a verified domain; the Gmail-API sender added in `9634e2c`
+was never activated because `GMAIL_SEND_REFRESH_TOKEN` was never minted.
+
+**Fix shipped:** `backend/scripts/mint_gmail_send_token.py` — one-time local OAuth consent flow
+that mints the `gmail.send` refresh token using the existing Google client + the registered dev
+redirect URI (`127.0.0.1:8000/api/auth/google/callback`; stop uvicorn first). Prints the exact
+Render env lines; `--send-test <email>` proves the grant end-to-end via a real Gmail API send.
+Adversarially reviewed (3-lens agent panel) and hardened: `allow_reuse_address=False` so a held
+port fails loudly on Windows (SO_REUSEADDR would silently bind alongside uvicorn), bind-before-
+browser ordering, token printed before the optional test send, BOM-tolerant `.env` parsing
+(`utf-8-sig` — the real `.env` starts with a BOM), cp1252-safe output, handler timeout +
+exception-safe callback signaling, loopback-only redirect guard. All fixes verified by a live
+socket/parse harness (port guard refuses with WinError 10048; parse finds `GOOGLE_CLIENT_ID`).
+
+**Remaining (user, one-time):** consent screen → "In production" publish status (Testing expires
+refresh tokens in 7 days), run the script, paste `GMAIL_SEND_REFRESH_TOKEN` + `SMTP_FROM` into the
+Render `synthsales-api` env, confirm `/health` flips to `email_mode: "gmail"`, then a real signup.
+Cleanup: delete probe user `synthsales.deploy.probe@example.com` (id 5) created during diagnosis.
