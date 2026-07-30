@@ -5,7 +5,7 @@ import re
 from sqlalchemy.orm import Session
 
 from app.agents.base import Agent
-from app.models import Campaign, Company, Contact, EmailDraft
+from app.models import Campaign, Company, Contact, EmailDraft, User
 from app.providers.ai import ai
 
 # Unfilled template artifacts that must never reach a prospect: bracketed
@@ -44,8 +44,13 @@ class OutreachAgent(Agent):
             db.delete(existing)
             db.commit()
 
-        subject, body = self._generate(contact, company, campaign)
-        footer = campaign.footer or "Best regards,\nThe SynthSales Team"
+        owner = db.get(User, owner_id)
+        sender = (owner.company_name or "").strip() if owner else ""
+        subject, body = self._generate(contact, company, campaign, sender)
+        footer = campaign.footer or (
+            f"Best regards,\nThe {sender} team" if sender
+            else "Best regards,\nThe SynthSales Team"
+        )
         draft = EmailDraft(
             contact_id=contact.id,
             subject=subject,
@@ -59,21 +64,31 @@ class OutreachAgent(Agent):
         self.log(db, owner_id, f"Drafted outreach to {contact.name} ({company.name}).")
         return draft
 
-    def _generate(self, contact: Contact, company: Company, campaign: Campaign) -> tuple[str, str]:
+    def _generate(
+        self, contact: Contact, company: Company, campaign: Campaign, sender: str = ""
+    ) -> tuple[str, str]:
         if ai.available:
+            sender_line = f"Sender: we are {sender}.\n" if sender else ""
+            identity_rule = (
+                f"You may name {sender} naturally where it helps. "
+                if sender
+                else "Refer to the sender as 'we' — do not invent a sender company name. "
+            )
             base_prompt = (
                 f"Write a short, personalized cold outreach email.\n"
                 f"Recipient: {contact.name}, {contact.role} at {company.name}.\n"
                 f"Company research: {company.research_summary}\n"
+                f"{sender_line}"
                 f"We sell: {campaign.product} — {campaign.value_proposition or campaign.product_description}\n"
                 f"Tone: {campaign.tone}. Personalization level: {campaign.personalization_level}/3.\n"
                 f"{'Use this template: ' + campaign.email_template if campaign.email_template else ''}\n"
                 "Rules: the email must be final copy, ready to send exactly as written. "
                 "Never use placeholders, bracketed fill-ins, or merge fields (no "
-                "'[Your Company]', no '[briefly mention ...]', no '{{name}}'). Refer to "
-                "the sender as 'we' — do not invent a sender company name. If the "
-                "product info above is thin, keep the pitch to one short sentence using "
-                "only what is given rather than padding with template text.\n"
+                "'[Your Company]', no '[briefly mention ...]', no '{{name}}'). "
+                + identity_rule +
+                "If the product info above is thin, keep the pitch to one short "
+                "sentence using only what is given rather than padding with template "
+                "text.\n"
                 "Return JSON with keys: subject (string) and body (string, no signature)."
             )
             prompt = base_prompt
@@ -101,7 +116,7 @@ class OutreachAgent(Agent):
             f"Hi {first},\n\n"
             f"I came across {company.name} while researching leaders in {company.industry}. "
             f"{company.research_summary.split('.')[0]}.\n\n"
-            f"We help teams like yours with {campaign.product or 'our solution'} — "
+            f"{'At ' + sender + ', we' if sender else 'We'} help teams like yours with {campaign.product or 'our solution'} — "
             f"{campaign.value_proposition or campaign.product_description or 'measurable results, fast'}.\n\n"
             f"Would a brief 20-minute call next week be worth your time, {first}?"
         )

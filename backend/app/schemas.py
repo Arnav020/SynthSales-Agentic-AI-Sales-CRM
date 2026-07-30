@@ -76,6 +76,7 @@ class Token(BaseModel):
 class UserOut(ORMModel):
     id: int
     name: str
+    company_name: str = ""
     email: EmailStr
     is_verified: bool
     is_admin: bool = False
@@ -90,6 +91,9 @@ class UserOut(ORMModel):
 
 class UserUpdate(BaseModel):
     name: str | None = None
+    # Unlike name, an empty string is legal: it clears the company so prompts
+    # revert to the anonymous "we".
+    company_name: str | None = None
     outbound_enabled: bool | None = None
     autonomous_replies: bool | None = None
 
@@ -103,6 +107,16 @@ class UserUpdate(BaseModel):
             raise ValueError("Name can't be empty")
         if len(v) > 120:
             raise ValueError("Name is too long (max 120 characters)")
+        return v
+
+    @field_validator("company_name")
+    @classmethod
+    def _clean_company(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        v = v.strip()
+        if len(v) > 200:
+            raise ValueError("Company name is too long (max 200 characters)")
         return v
 
 

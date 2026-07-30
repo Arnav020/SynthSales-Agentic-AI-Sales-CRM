@@ -38,6 +38,7 @@ function offsetISO(days: number, hourUtc = 16): string {
 export const DEMO_USER: User = {
   id: 9999,
   name: "Alex Rivera",
+  company_name: "Apex Cloud",
   email: "demo@synthsales.app",
   is_verified: true,
   is_admin: false,

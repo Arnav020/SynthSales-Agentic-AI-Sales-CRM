@@ -290,6 +290,13 @@ def update_me(
     if payload.name is not None:
         user.name = payload.name  # stripped + length-checked by UserUpdate
         add_log(db, user.id, "User", f"Display name updated to '{user.name}'.")
+    if payload.company_name is not None:
+        user.company_name = payload.company_name  # stripped; "" clears it
+        add_log(
+            db, user.id, "User",
+            f"Company name updated to '{user.company_name}'." if user.company_name
+            else "Company name cleared.",
+        )
     if payload.outbound_enabled is not None:
         if payload.outbound_enabled and not user.has_access:
             raise HTTPException(

@@ -189,6 +189,7 @@ function SettingsInner() {
   const [confirmAuto, setConfirmAuto] = useState(false);
   const [disconnecting, setDisconnecting] = useState<"calendar" | "mailbox" | null>(null);
   const [name, setName] = useState(me.name);
+  const [companyName, setCompanyName] = useState(me.company_name);
 
   // ---- tab ↔ URL (one-directional, like the campaign filter chips) ----------
   const rawTab = search.get("tab");
@@ -276,18 +277,25 @@ function SettingsInner() {
       { onDone: (r) => window.location.assign(r.url) },
     );
 
-  // ---- profile (name only; email stays immutable) ----------------------------
+  // ---- profile (name + company; email stays immutable) -----------------------
   const trimmedName = name.trim();
+  const trimmedCompany = companyName.trim();
   const nameDirty = trimmedName !== "" && trimmedName !== me.name;
-  const saveName = () =>
+  // Unlike the name, clearing the company is legal — drafts fall back to "we".
+  const companyDirty = trimmedCompany !== me.company_name;
+  const profileDirty = nameDirty || companyDirty;
+  const saveProfile = () =>
     run(
       "profile",
       async () => {
-        await api.updateName(trimmedName);
+        await api.updateProfile({
+          ...(nameDirty ? { name: trimmedName } : {}),
+          ...(companyDirty ? { company_name: trimmedCompany } : {}),
+        });
         await refresh();
         return true;
       },
-      { success: "Name updated" },
+      { success: "Profile updated" },
     );
 
   const memberSince = new Date(me.created_at).toLocaleDateString("en-US", {
@@ -320,6 +328,21 @@ function SettingsInner() {
                   onChange={(e) => setName(e.target.value)}
                 />
               </Field>
+              <Field label="Company" htmlFor="profile-company">
+                <Input
+                  id="profile-company"
+                  value={companyName}
+                  maxLength={200}
+                  placeholder="e.g. Apex Cloud"
+                  onChange={(e) => setCompanyName(e.target.value)}
+                />
+                <p className="mt-1.5 text-sm text-ink-soft">
+                  Your company&apos;s name — AI-written outreach and replies use it
+                  as the sender (&ldquo;At {trimmedCompany || "your company"}, we
+                  help&hellip;&rdquo;). Leave blank to stay anonymous
+                  (&ldquo;we&rdquo;).
+                </p>
+              </Field>
               <dl className="divide-y divide-line border-t border-line">
                 <ProfileRow label="Email" value={me.email} />
                 <ProfileRow label="Member since" value={memberSince} />
@@ -327,8 +350,8 @@ function SettingsInner() {
               <div className="flex justify-end">
                 <Button
                   busy={busy === "profile"}
-                  disabled={!nameDirty}
-                  onClick={() => void saveName()}
+                  disabled={!profileDirty}
+                  onClick={() => void saveProfile()}
                 >
                   Save changes
                 </Button>

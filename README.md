@@ -1352,3 +1352,20 @@ contains placeholders. Verified by a 12-check one-off script (detector + retry/f
 mocked AI) and a live generation with the exact junk campaign data — output came back as clean,
 final copy. Garbage-in-garbage-out still applies to the *content* ("We specialize in bbc —
 dasd,jas") — honest, but only as good as the product info the user enters.
+
+### 2026-07-30 (User.company_name — sender identity for AI-composed email)
+
+Follow-up to the placeholder fix: no field anywhere held the *user's own company*, so AI-written
+email could only ever say an anonymous "we" (and before the fix, the model invented
+"[Your Company]"). Added `User.company_name` (String(200), default "", migration `42646f566390`
+with a `server_default` backfill), editable in **Settings → Profile** (new Company field; blank is
+legal and reverts to anonymous "we" — `updateName` generalized to `api.updateProfile`, PATCH `/me`
+accepts + logs it). Threaded as the sender identity through every compose path: the outreach
+prompt gains a "Sender: we are X" line ("you may name X naturally" replaces the do-not-invent rule
+when set), the deterministic fallback opens "At X, we help…", the default draft footer becomes
+"The X team", the tracking follow-up and all three autonomous-reply personas become "a B2B SDR at
+X" (`auto_reply._at()`). Demo seed + frontend demo fixture set "Apex Cloud". Verified: 18-check
+one-off suite (validators, prompt/fallback threading with and without a company, `_at`, and a real
+end-to-end login → PATCH → clear → restore through TestClient against dev Postgres), placeholder
+suite re-passed, `npm run build` green, `alembic check` clean. (Pre-existing note: `npm run lint`
+carries 10 React-compiler errors in marketing/dashboard files untouched here.)

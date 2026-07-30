@@ -37,6 +37,7 @@ def seed_demo(db: Session) -> None:
 
     user = User(
         name="Jordan Pierce",
+        company_name="Apex Cloud",
         email=DEMO_EMAIL,
         hashed_password=hash_password("password123"),
         is_verified=True,

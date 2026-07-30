@@ -32,6 +32,10 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(120))
+    # The user's own company — the sender identity for every AI-composed email
+    # (outreach drafts, follow-ups, autonomous replies). Empty ⇒ prompts fall
+    # back to an anonymous "we"; they must never invent a name.
+    company_name: Mapped[str] = mapped_column(String(200), default="")
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     hashed_password: Mapped[str] = mapped_column(String(255))
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False)

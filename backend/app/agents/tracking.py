@@ -89,10 +89,15 @@ class TrackingAgent(Agent):
 
     def _send_follow_up(self, db: Session, thread: Thread, owner_id: int) -> None:
         if ai.available:
+            owner = db.get(User, owner_id)
+            sender = (owner.company_name or "").strip() if owner else ""
             convo = "\n".join(f"{m.direction}: {m.body}" for m in thread.messages[-3:])
             body = ai.complete(
                 f"Prior thread:\n{convo}\n\nWrite a brief, polite follow-up nudge.",
-                system="You are a B2B SDR. Keep it under 80 words.",
+                system=(
+                    f"You are a B2B SDR{' at ' + sender if sender else ''}. "
+                    "Keep it under 80 words."
+                ),
                 max_tokens=250,
             )
         else:

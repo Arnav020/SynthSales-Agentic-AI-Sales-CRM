@@ -65,6 +65,13 @@ def _reply_subject(thread: Thread) -> str:
     return subj if subj.lower().startswith("re:") else f"Re: {subj}"
 
 
+def _at(owner: User) -> str:
+    """' at <company>' when the user has set their company in Settings, else ''.
+    Keeps the SDR persona anonymous rather than letting the model invent a name."""
+    sender = (owner.company_name or "").strip()
+    return f" at {sender}" if sender else ""
+
+
 def _compose(prompt: str, system: str, fallback: str) -> str:
     if ai.available:
         text = ai.complete(prompt, system=system, max_tokens=400)
@@ -156,7 +163,7 @@ def _closing_note(db, owner, thread, contact, campaign, verdict) -> str:
             f"Write a brief (2-3 sentence), warm, no-pressure closing reply that thanks "
             f"them, respects the no, and leaves the door open. No signature."
         ),
-        system="You are a gracious B2B SDR.",
+        system=f"You are a gracious B2B SDR{_at(owner)}.",
         fallback=(
             f"Thanks for the reply, {first} — completely understand, and I appreciate "
             f"you letting me know. I'll close the loop here; if anything changes down "
@@ -222,7 +229,7 @@ def _propose_and_book(db, owner, thread, contact, campaign, verdict) -> str:
                 f"shares the updated Google Meet link {meeting.link}, and invites them to reply "
                 f"if that still doesn't work. Under 90 words. No signature."
             ),
-            system="You are a helpful B2B SDR.",
+            system=f"You are a helpful B2B SDR{_at(owner)}.",
             fallback=(
                 f"No problem, {first} — I've moved our call to {when_str}. Here's the updated "
                 f"Google Meet link: {meeting.link}\n\nIf that time still doesn't suit, just let "
@@ -241,7 +248,7 @@ def _propose_and_book(db, owner, thread, contact, campaign, verdict) -> str:
                 f"them to reply if another time suits, and tells them the Google Meet join link "
                 f"is {meeting.link}. Keep it under 90 words. No signature."
             ),
-            system="You are a helpful B2B SDR.",
+            system=f"You are a helpful B2B SDR{_at(owner)}.",
             fallback=(
                 f"Great to hear, {first}! I've set up a quick intro call for {when_str}. "
                 f"Join link: {meeting.link}\n\nIf another time works better, just reply and "
@@ -290,7 +297,7 @@ def _answer_question(db, owner, thread, contact, campaign, verdict) -> str:
             f"PRODUCT INFO:\n{product_info}\n\nPROSPECT QUESTION:\n{question}\n\n"
             'Return JSON: {"answerable": <true|false>, "answer": "<reply text, no signature>"}'
         ),
-        system="You are a precise B2B SDR who never invents facts.",
+        system=f"You are a precise B2B SDR{_at(owner)} who never invents facts.",
     ) if ai.available else None
 
     answerable = bool(data and data.get("answerable") and (data.get("answer") or "").strip())

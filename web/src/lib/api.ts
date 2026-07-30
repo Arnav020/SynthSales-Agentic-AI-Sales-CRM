@@ -212,8 +212,8 @@ export const api = {
   logout: () => request<void>("/api/auth/logout", { method: "POST" }),
   requestAccess: (note?: string) =>
     request<User>("/api/access/request", { method: "POST", body: { note: note ?? null } }),
-  updateName: (name: string) =>
-    request<User>("/api/auth/me", { method: "PATCH", body: { name } }),
+  updateProfile: (data: { name?: string; company_name?: string }) =>
+    request<User>("/api/auth/me", { method: "PATCH", body: data }),
   setOutbound: (enabled: boolean) =>
     request<User>("/api/auth/me", {
       method: "PATCH",

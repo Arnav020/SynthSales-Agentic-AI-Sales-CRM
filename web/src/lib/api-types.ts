@@ -37,6 +37,8 @@ export type Intent =
 export interface User {
   id: number;
   name: string;
+  /** The user's own company — sender identity in AI-written emails ("" = unset). */
+  company_name: string;
   email: string;
   is_verified: boolean;
   is_admin: boolean;
