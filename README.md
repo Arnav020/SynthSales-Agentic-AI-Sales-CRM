@@ -1291,3 +1291,38 @@ Cleanup: delete probe users `synthsales.deploy.probe@example.com` (id 5) and
 `pulkitg3110+synthsales@gmail.com` (id 7) created during diagnosis/verification. Still open:
 Render free-Postgres expiry (check dashboard; Oracle VM runbook is the durable fix) and deleting
 the stale `synthsales` Render web service (frontend lives on Vercel).
+
+### 2026-07-30 (prod DB moved to Neon; stale Render web service deleted)
+
+Closed out both leftovers from 2026-07-25.
+
+**Stale web service** — user deleted the `synthsales` Render web service (verified:
+`synthsales.onrender.com` → 404 `x-render-routing: no-server`); `render.yaml` dropped its
+service block and now points the blueprint's `CORS_ORIGINS`/`FRONTEND_URL` at
+`https://synthsales.vercel.app` so a sync can't recreate it or revert the CORS override (`25ce076`).
+
+**Database** — the Render free Postgres hit its expiry and Render cut access progressively:
+external TLS on 5432 was killed for everyone (verified from local, phone, and a GitHub Actions
+runner — TCP+plaintext answered `SSL/TLS required`, TLS handshakes dropped), and mid-day the
+internal DNS name (`dpg-…-a`) stopped resolving, so new deploys crashed at the boot-time
+`alembic upgrade` (uvicorn exit 3) while the old container kept serving on its established
+sockets. Rescue tooling was built then discarded: a GitHub Actions `pg_dump→pg_restore` relay
+(blocked by the TLS cutoff) and a token-gated in-app `/api/_evacuate` copier (blocked by the DNS
+cutoff — new containers couldn't reach the DB either). A keepalive held the last container alive
+while login-as-rescue was attempted, which proved the decisive fact instead: **prod held no data
+worth rescuing** — login requires `is_verified`, verification required the OTP email that never
+delivered before 2026-07-25 (and Google OAuth login is broken in prod — pre-existing
+`Access blocked: this app's request is invalid`, still open), so the only verified account ever
+(id 7, `pulkitg3110+synthsales@gmail.com`, created during the OTP fix) owned zero campaigns. The
+user's remembered campaigns (`xonoyep441@4nly.com`) were local-dev data, safe in Docker Postgres.
+
+**Cutover (fresh start):** new Neon free-tier project `synthsales` in **AWS us-west-2** (same
+region as the Render API; the user's old `synthsales-prod` Neon project was ap-southeast-1 —
+region is fixed at creation, so a new project was made; DB `synthsales` created via SQL editor).
+`render.yaml`: `databases:` block removed, `DATABASE_URL` → `sync: false` (`087b735`, which also
+removed the rescue workflow + evacuation router). User set `DATABASE_URL` (direct non-pooler URL,
+`sslmode=require`) + `ADMIN_EMAILS` in the Render env. Verified live: deploy green, `/health` ok,
+login probe 401 (Alembic built the fresh schema on Neon on boot). **No more DB expiry risk.**
+Remaining tidy-ups: delete the `RENDER_DB_URL`/`NEON_DB_URL` GitHub Actions secrets, delete the
+old `synthsales-prod` Neon project, re-register the user's account (auto-admin via
+`ADMIN_EMAILS`), and someday fix prod Google OAuth login.
