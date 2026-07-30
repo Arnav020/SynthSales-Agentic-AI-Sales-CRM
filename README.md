@@ -1334,3 +1334,21 @@ the fix was purely console-side: the three prod redirect URIs (`…/api/auth/goo
 `…/calendar/callback`, `…/mailbox/callback`) were added to the OAuth client in Google Cloud
 Console. Google login verified working in production; the calendar/mailbox connect flows are
 pre-fixed by the same registration. **No open deployment issues.**
+
+### 2026-07-30 (fix: outreach drafts could contain unfilled placeholder text)
+
+User testing surfaced a queued draft reading "That's where [Your Company] comes in… [briefly
+mention core value prop of bbc — e.g., …]". Root cause was three stacked gaps in
+`agents/outreach.py::_generate`: the prompt never identified the sender (no sender-company field
+exists anywhere in the schema, so the model can only write "[Your Company]"); nothing demanded
+final ready-to-send copy, so junk campaign product fields (the test campaign's product was
+literally "bbc" / "dasd,jas") pushed the model into cold-email-*template* mode; and the AI output
+was stored verbatim — any subject+body passed. Fix (all three layers, same function): the prompt
+now forbids placeholders/merge fields, tells the model to say "we" instead of inventing a sender
+name, and to keep the pitch short when product info is thin; a `_looks_templated()` gate (regex
+for `[…]`, `{{…}}`, `<Angle>` artifacts) rejects templated output with **one corrective retry**
+(salvages the AI personalization) before falling back to the deterministic template, which never
+contains placeholders. Verified by a 12-check one-off script (detector + retry/fallback paths,
+mocked AI) and a live generation with the exact junk campaign data — output came back as clean,
+final copy. Garbage-in-garbage-out still applies to the *content* ("We specialize in bbc —
+dasd,jas") — honest, but only as good as the product info the user enters.
