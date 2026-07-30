@@ -14,8 +14,9 @@ Two independent apps in one repo:
 - `web/` — Next.js 16 + React 19 + Tailwind v4 (App Router). All user-facing branding is **SynthSales**;
   no "reachly" string may appear in `web/src`. Talks to the backend over REST (polling for live data).
 
-**`README.md` is a running context log** — it is updated after each substantial task with what changed and why; keep that
-convention when you finish meaningful work.
+**`CHANGELOG.md` is a running context log** (renamed from `README.md` — that file is now the public-facing project
+README) — it is updated after each substantial task with what changed and why; keep that convention when you finish
+meaningful work.
 
 ## Running the stack
 
