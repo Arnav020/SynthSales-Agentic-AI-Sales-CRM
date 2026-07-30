@@ -386,8 +386,13 @@ divergence called out) lives in [`spec.txt`](spec.txt).
 
 ## About this project
 
-Built by [**Arnav Joshi**](https://github.com/Arnav020) together with a collaborator, as a
-hands-on exploration of building a genuinely agentic product — not a chatbot wrapper, but a
-pipeline of narrow, accountable agents that each own one job, hand off clean state to the
+Built together by:
+
+- [**Arnav Joshi**](https://github.com/Arnav020)
+- [**Pulkit Garg**](https://github.com/PulkitGarg31)
+- [**Navnoor Bawa**](https://github.com/NavnoorBawa)
+
+as a hands-on exploration of building a genuinely agentic product — not a chatbot wrapper, but
+a pipeline of narrow, accountable agents that each own one job, hand off clean state to the
 next, and are individually re-runnable, undoable, and auditable.
 
