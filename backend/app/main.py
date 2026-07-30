@@ -123,7 +123,6 @@ from app.api.routers import (  # noqa: E402
     contacts,
     conversations,
     dashboard,
-    db_evacuate,  # TEMPORARY — remove with the router once the DB move is done
     emails,
     logs,
     meetings,
@@ -145,7 +144,6 @@ for module in (
     agents,
     logs,
     dashboard,
-    db_evacuate,  # TEMPORARY
 ):
     app.include_router(module.router)
 

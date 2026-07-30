@@ -10,11 +10,9 @@
 # update the hardcoded onrender.com URLs below + the Google redirect URIs to
 # match the real hostnames.
 
-databases:
-  - name: synthsales-db
-    databaseName: synthsales
-    user: synthsales
-    plan: free # 30-day expiry on free; upgrade for anything real.
+# The database is NOT on Render — it's a Neon free-tier Postgres (no expiry).
+# The original Render free database expired 2026-07-30 and was abandoned;
+# DATABASE_URL is set manually in the service's Environment tab (sync: false).
 
 services:
   # ── Shared rate-limiter state (Render "Key Value", Redis-compatible) ──
@@ -40,9 +38,7 @@ services:
       - key: SECRET_KEY
         generateValue: true # Render generates a strong random value.
       - key: DATABASE_URL
-        fromDatabase:
-          name: synthsales-db
-          property: connectionString
+        sync: false # Neon direct (non-pooler) URL with ?sslmode=require
       - key: REDIS_URL
         fromService:
           type: keyvalue
