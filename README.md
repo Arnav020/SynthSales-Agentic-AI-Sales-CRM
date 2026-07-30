@@ -1323,6 +1323,14 @@ region is fixed at creation, so a new project was made; DB `synthsales` created 
 removed the rescue workflow + evacuation router). User set `DATABASE_URL` (direct non-pooler URL,
 `sslmode=require`) + `ADMIN_EMAILS` in the Render env. Verified live: deploy green, `/health` ok,
 login probe 401 (Alembic built the fresh schema on Neon on boot). **No more DB expiry risk.**
-Remaining tidy-ups: delete the `RENDER_DB_URL`/`NEON_DB_URL` GitHub Actions secrets, delete the
-old `synthsales-prod` Neon project, re-register the user's account (auto-admin via
-`ADMIN_EMAILS`), and someday fix prod Google OAuth login.
+Tidy-ups all done same day: GitHub Actions secrets deleted, old `synthsales-prod` Neon project
+deleted, user re-registered as `pulkit3110@gmail.com` (auto-admin via `ADMIN_EMAILS` — exact
+string match, aliases don't count).
+
+**Google OAuth login fixed (same day):** the "Access blocked: this app's request is invalid"
+error was a redirect-URI mismatch — the OAuth client only had the local-dev URI registered. The
+live `/google/start` request was well-formed (verified by capturing its `Location` header), so
+the fix was purely console-side: the three prod redirect URIs (`…/api/auth/google/callback`,
+`…/calendar/callback`, `…/mailbox/callback`) were added to the OAuth client in Google Cloud
+Console. Google login verified working in production; the calendar/mailbox connect flows are
+pre-fixed by the same registration. **No open deployment issues.**
