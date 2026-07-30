@@ -43,6 +43,7 @@ export function useAuth(): AuthCtx {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [me, setMe] = useState<User | null>(null);
+  const [waking, setWaking] = useState(false);
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Named function expression so the retry can self-reference without TDZ.
@@ -53,15 +54,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     try {
       setMe(await api.me());
+      setWaking(false);
     } catch (e) {
-      // Only a real HTTP rejection invalidates the session (401 already cleared
-      // the token and redirected inside api.ts; this covers 403/500). A network
-      // failure - e.g. uvicorn --reload mid-restart - must NOT destroy a valid
-      // token: keep any stale `me` and retry shortly.
-      if (e instanceof ApiError) {
+      // Only a client-side rejection invalidates the session: 401 already
+      // cleared the token and redirected inside api.ts; a 403/404 from /me
+      // means the session itself is broken. A 5xx — e.g. Render's proxy while
+      // the free instance cold-boots — is the server's problem, not the
+      // session's, and a network failure (uvicorn --reload mid-restart) is
+      // transient: for both, keep the token, keep any stale `me`, and retry
+      // until the server is back.
+      if (e instanceof ApiError && e.status < 500) {
         clearToken();
         router.replace("/login");
       } else {
+        setWaking(true);
         retryTimer.current = setTimeout(() => void refresh(), 3000);
       }
     }
@@ -94,7 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   if (!me) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-cream">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-5 bg-cream">
         <Image
           src="/brand/emblem.png"
           alt="SynthSales"
@@ -104,6 +110,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           priority
           className="h-16 w-auto animate-pulse motion-reduce:animate-none"
         />
+        {waking && (
+          <p className="text-sm text-ink-soft">
+            Waking the server — this can take up to a minute&hellip;
+          </p>
+        )}
       </div>
     );
   }

@@ -1383,3 +1383,19 @@ commit found while wiring this: `emails.py::regenerate` called `_generate` witho
 arg, so the per-draft Regenerate button ignored a configured company name. Verified by a 7-check
 one-off suite against dev Postgres (fires / dedupes / re-fires after read / silent with company or
 unknown owner) + module import check.
+
+### 2026-07-30 (fix: every prod revisit logged the user out — 5xx wiped the token)
+
+User report: every return visit to synthsales.vercel.app started logged-out. Root cause was in
+`AuthProvider.refresh()`: its catch treated **any non-network `ApiError` as a dead session**
+(the comment explicitly said "covers 403/500") — `clearToken()` + redirect. On Render's free plan
+the API spins down after ~15 idle minutes, so the first `/api/auth/me` of a cold visit can get a
+502/503 from Render's proxy while the instance boots (~30–60s incl. the boot-time
+`alembic upgrade`), and that response destroyed a perfectly valid 7-day token. Login always
+succeeded seconds later (server awake by then), completing the "sessions don't persist" illusion.
+Fix: only a **client-side** rejection ends the session (401 is already handled inside `api.ts`;
+a 403/404 from `/me` clears + redirects); **5xx now joins the network-failure path** — keep the
+token, keep the splash, retry every 3s until the server wakes — and after the first failed attempt
+the splash shows "Waking the server — this can take up to a minute…" so a cold start doesn't look
+broken. (`SECRET_KEY` rotation and token expiry were ruled out: Render `generateValue` is stable
+across deploys and the token lives 7 days.)
