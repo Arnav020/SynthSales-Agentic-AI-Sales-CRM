@@ -1369,3 +1369,17 @@ one-off suite (validators, prompt/fallback threading with and without a company,
 end-to-end login → PATCH → clear → restore through TestClient against dev Postgres), placeholder
 suite re-passed, `npm run build` green, `alembic check` clean. (Pre-existing note: `npm run lint`
 carries 10 React-compiler errors in marketing/dashboard files untouched here.)
+
+### 2026-07-30 (missing-company-name nudge + regenerate sender fix)
+
+Signup deliberately doesn't ask for a company name (kept friction-free), so the nudge lives where
+it matters: whenever outreach drafting runs for a user whose `company_name` is unset —
+both orchestrator paths (full pipeline Phase 6 + on-demand outreach run) and the per-draft
+regenerate route — `outreach.nudge_missing_company()` raises a "Add your company name"
+notification (type `campaign`, so the existing web union/icons need no change) pointing at
+Settings → Profile. Deduped: skipped while an identical nudge sits **unread**, so repeated runs
+don't pile up; once read, the next anonymous run nudges again. Also fixed a gap in the previous
+commit found while wiring this: `emails.py::regenerate` called `_generate` without the `sender`
+arg, so the per-draft Regenerate button ignored a configured company name. Verified by a 7-check
+one-off suite against dev Postgres (fires / dedupes / re-fires after read / silent with company or
+unknown owner) + module import check.

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.agents.base import AGENT_REGISTRY, Agent
 from app.agents.employee_finder import employee_finder_agent
 from app.agents.enrichment import enrichment_agent
-from app.agents.outreach import outreach_agent
+from app.agents.outreach import nudge_missing_company, outreach_agent
 from app.agents.scoring import scoring_agent
 from app.agents.tracking import tracking_agent
 from app.agents.email_guess_verification import email_guess_verification_agent
@@ -357,6 +357,7 @@ def run_agent_for_campaign(
                     ):
                         outreach_agent.run(db, contact, c, campaign, owner_id, force=force)
 
+        nudge_missing_company(db, owner_id)
         _phase(db, owner_id, outreach_agent, _draft_all)
     elif key == "tracking":
         # Tracking is user-scoped, not campaign-scoped — the agent walks all
@@ -519,6 +520,7 @@ def run_campaign_pipeline(db: Session, campaign: Campaign, owner_id: int) -> dic
                     outreach_agent.run(db, contact, c, campaign, owner_id, force=True)
 
     # Only approved users reach here (non-approved branch to the preview above).
+    nudge_missing_company(db, owner_id)
     _phase(db, owner_id, outreach_agent, _draft_all)
 
     campaign.status = "Running"

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.agents.outreach import outreach_agent
+from app.agents.outreach import nudge_missing_company, outreach_agent
 from app.api.deps import get_current_user
 from app.api.pagination import Page, paginate
 from app.core.database import get_db
@@ -65,7 +65,10 @@ def regenerate(
     contact = db.get(Contact, d.contact_id)
     company = contact.company
     campaign = company.campaign
-    subject, body = outreach_agent._generate(contact, company, campaign)
+    nudge_missing_company(db, user.id)
+    subject, body = outreach_agent._generate(
+        contact, company, campaign, sender=(user.company_name or "").strip()
+    )
     d.subject, d.body = subject, body
     db.commit()
     db.refresh(d)

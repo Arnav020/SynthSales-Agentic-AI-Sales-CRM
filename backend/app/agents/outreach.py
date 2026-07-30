@@ -5,8 +5,9 @@ import re
 from sqlalchemy.orm import Session
 
 from app.agents.base import Agent
-from app.models import Campaign, Company, Contact, EmailDraft, User
+from app.models import Campaign, Company, Contact, EmailDraft, Notification, User
 from app.providers.ai import ai
+from app.services.events import add_notification
 
 # Unfilled template artifacts that must never reach a prospect: bracketed
 # fill-ins ("[Your Company]", "[briefly mention ...]"), {{merge}} fields, and
@@ -20,6 +21,35 @@ _PLACEHOLDER_RE = re.compile(
 
 def _looks_templated(text: str) -> bool:
     return bool(_PLACEHOLDER_RE.search(text))
+
+
+_NUDGE_TITLE = "Add your company name"
+
+
+def nudge_missing_company(db: Session, owner_id: int) -> None:
+    """When drafting runs for a user with no company name set, raise one
+    notification pointing them to Settings → Profile. Skipped while an
+    identical nudge sits unread, so repeated runs don't pile them up."""
+    owner = db.get(User, owner_id)
+    if not owner or (owner.company_name or "").strip():
+        return
+    unread = (
+        db.query(Notification)
+        .filter(
+            Notification.owner_id == owner_id,
+            Notification.title == _NUDGE_TITLE,
+            Notification.read.is_(False),
+        )
+        .first()
+    )
+    if unread:
+        return
+    add_notification(
+        db, owner_id, "campaign", _NUDGE_TITLE,
+        "Outreach drafts are being written without your company's name, so they "
+        "can only say \"we\". Add it in Settings → Profile and re-run outreach "
+        "to sign your emails.",
+    )
 
 
 class OutreachAgent(Agent):
