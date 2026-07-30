@@ -51,9 +51,9 @@ services:
       - key: TRUST_PROXY
         value: "true" # Render fronts the app with a proxy → trust X-Forwarded-For.
       - key: CORS_ORIGINS
-        value: https://synthsales.onrender.com
+        value: https://synthsales.vercel.app
       - key: FRONTEND_URL
-        value: https://synthsales.onrender.com
+        value: https://synthsales.vercel.app
       - key: ENABLE_SCHEDULER
         value: "true"
       # — Web search (REQUIRED in prod: ddgs is blocked from datacenter IPs) —
@@ -120,16 +120,6 @@ services:
       - key: CONTACT_INBOX
         sync: false
 
-  # ── Frontend (Next.js 16, standalone) ──
-  - type: web
-    name: synthsales
-    runtime: docker
-    dockerfilePath: ./web/Dockerfile
-    dockerContext: ./web
-    plan: free
-    envVars:
-      # Inlined into the client bundle at BUILD time. Render exposes service env
-      # vars to the Docker build as build args, which the Dockerfile reads via
-      # `ARG NEXT_PUBLIC_API_URL`. Must be the backend's public URL.
-      - key: NEXT_PUBLIC_API_URL
-        value: https://synthsales-api.onrender.com
+  # The frontend is NOT deployed on Render — it lives on Vercel
+  # (https://synthsales.vercel.app, NEXT_PUBLIC_API_URL baked in at build time).
+  # The old `synthsales` Render web service was removed 2026-07-30.
