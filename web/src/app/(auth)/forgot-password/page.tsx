@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Field";
 import { DevOtpNote, OtpInput } from "@/components/auth/OtpInput";
 import { PasswordHints, passwordOk } from "@/components/auth/PasswordHints";
+import { useCooldown } from "@/components/auth/useCooldown";
 
 const NETWORK_MSG = "Could not reach the server. Is the backend running?";
 
@@ -22,6 +23,7 @@ export default function ForgotPasswordPage() {
   // account exists.
   const [note, setNote] = useState<string | null>(null);
   const [devOtp, setDevOtp] = useState<string | null>(null);
+  const cooldown = useCooldown(30);
 
   async function submitEmail(e: React.FormEvent) {
     e.preventDefault();
@@ -33,9 +35,30 @@ export default function ForgotPasswordPage() {
       setDevOtp(r.dev_otp ?? null);
       setCode("");
       setStep("reset");
+      cooldown.start();
     } catch (err) {
       // 429 throttle details surface verbatim.
       setError(err instanceof ApiError ? err.message : NETWORK_MSG);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Re-requests a reset code via forgot-password (the "R" channel) — NOT the
+  // signup resend endpoint, whose "V" codes the reset screen would reject.
+  async function resend() {
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await api.forgotPassword(email);
+      setNote(r.detail);
+      setDevOtp(r.dev_otp ?? null);
+      cooldown.start();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : NETWORK_MSG);
+      // The server throttle (3/email per 10 min) outlasts the 30s button
+      // cooldown; arm it on a 429 too so the button can't be hammered.
+      if (err instanceof ApiError && err.status === 429) cooldown.start();
     } finally {
       setBusy(false);
     }
@@ -122,16 +145,21 @@ export default function ForgotPasswordPage() {
             Reset password
           </Button>
         </form>
-        <Button
-          variant="ghost"
-          disabled={busy}
-          onClick={() => {
-            setError(null); // a stale "Invalid code" must not read as an email error
-            setStep("email");
-          }}
-        >
-          &larr; Use a different email
-        </Button>
+        <div className="flex items-center justify-between gap-3">
+          <Button
+            variant="ghost"
+            disabled={busy}
+            onClick={() => {
+              setError(null); // a stale "Invalid code" must not read as an email error
+              setStep("email");
+            }}
+          >
+            &larr; Use a different email
+          </Button>
+          <Button variant="ghost" disabled={cooldown.active || busy} onClick={resend}>
+            {cooldown.active ? `Resend in ${cooldown.remaining}s` : "Resend code"}
+          </Button>
+        </div>
       </div>
     );
   }
